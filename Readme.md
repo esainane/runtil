@@ -1,6 +1,6 @@
 # Runtil
 
-Runtil is a simple wrapper which runs a command, and separately polls another command, and terminates (and optionally kills) the first command when the second command exits with an exit code of 0.
+Runtil is a simple wrapper which runs a command, and separately polls a conditional command. The first command is killed when the condition returns 0.
 
 # Installation
 
