@@ -26,7 +26,7 @@ Work until the system gets too hot, then wait until it cools down, and repeat:
 
 ```bash
 while sleep 1; do
-  runtil "[ "$(sensors | sed -n "s/^.*Package id 0: *+\([0-9]\+\)\.[0-9]°C.*/\1/p")" -gt 90 ]" -- "./rag-embed.sh"
+  runtil '[ "$(sensors | sed -n "s/^.*Package id 0: *+\([0-9]\+\)\.[0-9]°C.*/\1/p")" -gt 90 ]' -- "./rag-embed.sh"
   echo -n 'Waiting to cool down.'
   runtil '[ "$(sensors | sed -n "s/^.*Package id 0: *+\([0-9]\+\)\.[0-9]°C.*/\1/p")" -lt 72 ]' 'while sleep 1; do echo -n "."; done'
   echo '. Done.'
