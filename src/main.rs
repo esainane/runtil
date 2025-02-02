@@ -74,6 +74,25 @@ fn main() {
             break;
         }
 
+        // Check if the run command has exited
+        match run_command.try_wait() {
+            Ok(Some(status)) => {
+                // Propagate the exit status
+                if status.success() {
+                    break;
+                } else {
+                    exit(status.code().unwrap_or(1));
+                }
+            }
+            Ok(None) => {
+                // Run command is still running
+            }
+            Err(e) => {
+                eprintln!("Failed to check run command status: {}", e);
+                exit(1);
+            }
+        }
+
         std::thread::sleep(std::time::Duration::from_secs(2));
     }
 
