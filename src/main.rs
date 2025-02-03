@@ -1,5 +1,8 @@
 use std::env;
-use std::process::{Command, exit};
+use std::process::{exit};
+// XXX: Maybe this should keep the Command name, instead of making TokioCommand explicit?
+use tokio::process::Command as TokioCommand;
+use tokio::time::{sleep, Duration};
 
 fn print_usage(err: bool) {
     // If it's an error, print to stderr and exit
@@ -11,7 +14,8 @@ fn print_usage(err: bool) {
     println!("Usage: runtil <command to poll> [--] <command to run>");
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 3 {
         print_usage(true);
@@ -56,46 +60,50 @@ fn main() {
     }
 
     // Fork the run command
-    let mut run_command = Command::new("sh")
+    let mut run_command = TokioCommand::new("sh")
         .arg("-c")
         .arg(run_command)
         .spawn()
         .expect("Failed to spawn run command");
 
-    // Every 2s, run the poll command
-    loop {
-        let output = Command::new("sh")
-            .arg("-c")
-            .arg(&poll_command)
-            .output()
-            .expect("Failed to spawn poll command");
+    let poll_command = poll_command.clone();
 
-        if output.status.success() {
-            break;
+    // Spawn a task to run the poll command every 2 seconds
+    let poll_task = tokio::spawn(async move {
+        loop {
+            let output = TokioCommand::new("sh")
+                .arg("-c")
+                .arg(&poll_command)
+                .output()
+                .await
+                .expect("Failed to spawn poll command");
+
+            if output.status.success() {
+                break;
+            }
+
+            sleep(Duration::from_secs(2)).await;
         }
+    });
 
-        // Check if the run command has exited
-        match run_command.try_wait() {
-            Ok(Some(status)) => {
-                // Propagate the exit status
-                if status.success() {
-                    break;
-                } else {
-                    exit(status.code().unwrap_or(1));
+    // Wait for either the run command to exit or the poll command to succeed
+    tokio::select! {
+        status = run_command.wait() => {
+            match status {
+                Ok(status) => {
+                    if !status.success() {
+                        exit(status.code().unwrap_or(1));
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Failed to wait for run command: {}", e);
+                    exit(1);
                 }
             }
-            Ok(None) => {
-                // Run command is still running
-            }
-            Err(e) => {
-                eprintln!("Failed to check run command status: {}", e);
-                exit(1);
-            }
         }
-
-        std::thread::sleep(std::time::Duration::from_secs(2));
+        _ = poll_task => {
+            // Poll command succeeded, kill the run command
+            run_command.kill().await.expect("Failed to kill run command");
+        }
     }
-
-    // Terminate the run command
-    run_command.kill().expect("Failed to kill run command");
 }
