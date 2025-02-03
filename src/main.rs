@@ -4,14 +4,33 @@ use std::process::{exit};
 use tokio::process::Command as TokioCommand;
 use tokio::time::{sleep, Duration};
 
+struct Config {
+    verbose: bool,
+}
+
 fn print_usage(err: bool) {
     // If it's an error, print to stderr and exit
     if err {
-        eprintln!("Usage: runtil <command to poll> [--] <command to run>");
+        eprintln!("Usage: runtil [options] <command to poll> [--] <command to run>");
         exit(1);
     }
     // Otherwise, print to stdout
-    println!("Usage: runtil <command to poll> [--] <command to run>");
+    println!("Usage: runtil [options] <command to poll> [--] <command to run>");
+}
+
+fn parse_options(args: &[String]) -> (usize, Config) {
+    let mut verbose = false;
+    let mut index = 1;
+
+    while index < args.len() {
+        match args[index].as_str() {
+            "-v" => verbose = true,
+            _ => break,
+        }
+        index += 1;
+    }
+
+    (index, Config { verbose })
 }
 
 #[tokio::main]
@@ -21,7 +40,7 @@ async fn main() {
         print_usage(true);
     }
 
-    // TODO: Any options
+    let (args_consumed_index, config) = parse_options(&args);
 
     // Treat all non-option pieces as belonging to the poll command except for the last piece. If an explicit
     // separator is found, instead all pieces after the separator are part of the run command.
@@ -30,7 +49,7 @@ async fn main() {
     let mut separator_found = false;
 
     // Iterate over all arguments except the last one
-    for arg in &args[1..args.len()-1] {
+    for arg in &args[args_consumed_index..args.len()-1] {
         if arg == "--" {
             separator_found = true;
         } else if separator_found {
@@ -52,8 +71,10 @@ async fn main() {
     }
     run_command.push_str(&args[args.len() - 1]);
 
-    println!("Poll command: {}", poll_command);
-    println!("Run command: {}", run_command);
+    if config.verbose {
+        println!("Poll command: {}", poll_command);
+        println!("Run command: {}", run_command);
+    }
 
     if poll_command.is_empty() || run_command.is_empty() {
         print_usage(true);

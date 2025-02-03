@@ -12,7 +12,7 @@ cargo install --path .
 # Usage
 
 ```bash
-runtil <command to poll> [--] <command to run>
+runtil [options] <command to poll> [--] <command to run>
 ```
 
 # Examples
