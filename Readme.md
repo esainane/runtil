@@ -40,5 +40,5 @@ done
 
 Act as a crude timeout(1) substitute:
 ```bash
-runtil -t 1 '[ $(date +%s) -gt '"$(date +%s --date='10 seconds')"' ]' 'while sleep 1; do echo "Still alive."; done'
+runtil -t 1 '[ $(date +%s) -ge '"$(date +%s --date='10 seconds')"' ]' 'while sleep 1; do echo "Still alive."; done'
 ```
