@@ -2,7 +2,7 @@ use std::env;
 use std::process::{exit};
 // XXX: Maybe this should keep the Command name, instead of making TokioCommand explicit?
 use tokio::process::Command as TokioCommand;
-use tokio::time::{sleep, Duration};
+use tokio::time::{sleep, Duration, Instant};
 
 struct Config {
     verbose: bool,
@@ -92,6 +92,8 @@ async fn main() {
     // Spawn a task to run the poll command every 2 seconds
     let poll_task = tokio::spawn(async move {
         loop {
+            let start_time = Instant::now();
+
             let output = TokioCommand::new("sh")
                 .arg("-c")
                 .arg(&poll_command)
@@ -103,7 +105,10 @@ async fn main() {
                 break;
             }
 
-            sleep(Duration::from_secs(2)).await;
+            let elapsed = start_time.elapsed();
+            if elapsed < Duration::from_secs(2) {
+                sleep(Duration::from_secs(2) - elapsed).await;
+            }
         }
     });
 
