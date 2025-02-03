@@ -9,6 +9,7 @@ use tokio::pin;
 struct Config {
     verbose: bool,
     kill_condition_code: i32,
+    poll_interval: Duration,
 }
 
 fn print_usage(err: bool) {
@@ -23,17 +24,26 @@ fn print_usage(err: bool) {
 
 fn parse_options(args: &[String]) -> (usize, Config) {
     let mut verbose = false;
+    let mut poll_interval = Duration::from_secs(2);
     let mut index = 1;
 
     while index < args.len() {
         match args[index].as_str() {
             "-v" => verbose = true,
+            "-t" => {
+                if index + 1 < args.len() {
+                    poll_interval = Duration::from_secs(args[index + 1].parse().expect("Invalid interval"));
+                    index += 1;
+                } else {
+                    print_usage(true);
+                }
+            }
             _ => break,
         }
         index += 1;
     }
 
-    (index, Config { verbose, kill_condition_code: 124 })
+    (index, Config { verbose, kill_condition_code: 124, poll_interval })
 }
 
 fn parse_arguments(args: &[String]) -> (String, String, Config) {
@@ -97,7 +107,7 @@ async fn run_task(run_command: String, token: CancellationToken, config: &Config
     }
 }
 
-async fn run_conditional(poll_command: String, token: CancellationToken, _config: &Config) {
+async fn run_conditional(poll_command: String, token: CancellationToken, config: &Config) {
     loop {
         let start_time = Instant::now();
 
@@ -114,10 +124,10 @@ async fn run_conditional(poll_command: String, token: CancellationToken, _config
             _ = token.cancelled() => return,
         }
 
-        // Wait up to 2s before polling again
+        // Wait up to the specified interval before polling again
         let elapsed = start_time.elapsed();
-        if elapsed < Duration::from_secs(2) {
-            sleep(Duration::from_secs(2) - elapsed).await;
+        if elapsed < config.poll_interval {
+            sleep(config.poll_interval - elapsed).await;
         }
     }
 }
